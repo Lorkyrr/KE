@@ -6,15 +6,16 @@ e os **operadores**. Desenho:
 e [ADR 0001](docs/adr/0001-quadro-faixas-e-operadores-como-biblioteca.md).
 
 ```text
-quadro/                biblioteca: buffer por comando, faixas (posições) e registradores
-operadores/            biblioteca: as instruções (Converter, Somar, Multiplicar, Escrever) e Seq
+quadro/                biblioteca: buffer por comando, faixas (posições), registradores e Ligar (fan-in)
+operadores/            biblioteca: as instruções (Converter, Somar, Subtrair, Multiplicar, Dividir,
+                       Arredondar, Escrever) e Seq
+pipeline/              biblioteca: Receita (entradas exigidas + operadores) e Juncao (entrada sincronizada)
 firewall/
 ├── sanitizar/         folhas puras sobre []byte
 ├── entrada/           contrato declarado por tag; sem declaração, derruba
 └── router/
     ├── externo/       transporte; o único que importa net
     └── interno/       encaminha o endereço do quadro, nunca o conteúdo
-nucleo/pipeline/       executa uma receita (entradas exigidas + operadores em ordem)
 ```
 
 ## Duas regras, impostas por teste
