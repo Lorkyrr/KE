@@ -3,7 +3,9 @@
 Motor de integração multiplataforma. O cerne é o **firewall**, com o router,
 e os **operadores**. Desenho:
 [`KEngine/.planning/specs/kengine-2-0-arquitetura.md`](https://github.com/Lorkyrr/KEngine)
-e [ADR 0001](docs/adr/0001-quadro-faixas-e-operadores-como-biblioteca.md).
+[ADR 0001](docs/adr/0001-quadro-faixas-e-operadores-como-biblioteca.md) e
+[ADR 0002](docs/adr/0002-transmitir-receitas-e-fluxo-entre-pipelines.md)
+(fluxo entre pipelines; lista as pendências de desenho).
 
 ```text
 quadro/                biblioteca: buffer por comando, faixas (posições), registradores e Ligar (fan-in)
