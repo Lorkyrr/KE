@@ -10,8 +10,8 @@ import (
 	"github.com/lorkyrr/ke/firewall/router/externo"
 	"github.com/lorkyrr/ke/firewall/router/interno"
 	"github.com/lorkyrr/ke/firewall/sanitizar"
-	"github.com/lorkyrr/ke/nucleo/pipeline"
 	"github.com/lorkyrr/ke/operadores"
+	"github.com/lorkyrr/ke/pipeline"
 	"github.com/lorkyrr/ke/quadro"
 )
 

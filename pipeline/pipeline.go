@@ -29,13 +29,21 @@ func Declarar(nome string, entradas []quadro.Tag, etapas ...operadores.Op) Recei
 
 // Executar roda a receita sobre o quadro.
 func (r Receita) Executar(q *quadro.Quadro) error {
-	for _, t := range r.entradas {
-		if !q.Presente(t) {
-			return fmt.Errorf("%s: %w (tag %d)", r.Nome, ErrAguardando, t)
-		}
+	if t, falta := r.faltando(q); falta {
+		return fmt.Errorf("%s: %w (tag %d)", r.Nome, ErrAguardando, t)
 	}
 	if err := r.etapas(q); err != nil {
 		return fmt.Errorf("%s: %w", r.Nome, err)
 	}
 	return nil
+}
+
+// faltando devolve a primeira entrada exigida que o quadro ainda não tem.
+func (r Receita) faltando(q *quadro.Quadro) (quadro.Tag, bool) {
+	for _, t := range r.entradas {
+		if !q.Presente(t) {
+			return t, true
+		}
+	}
+	return 0, false
 }

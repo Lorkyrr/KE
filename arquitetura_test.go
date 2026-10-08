@@ -52,14 +52,14 @@ func TestSoORouterExternoImportaRede(t *testing.T) {
 // quadro e operadores são biblioteca: qualquer projeto importa sem carregar
 // nada do KE além deles e da stdlib (ADR 0001).
 func TestBibliotecaSoDependeDaStdlib(t *testing.T) {
-	permitidos := map[string]bool{modulo + "/quadro": true}
+	permitidos := map[string]bool{modulo + "/quadro": true, modulo + "/operadores": true}
 	for pkg, ds := range deps(t) {
-		if pkg != "/quadro" && pkg != "/operadores" {
+		if pkg != "/quadro" && pkg != "/operadores" && pkg != "/pipeline" {
 			continue
 		}
 		for _, d := range ds {
 			if !stdlib(d) && !permitidos[d] {
-				t.Errorf("%s importa %s; a biblioteca só pode importar stdlib e quadro", pkg, d)
+				t.Errorf("%s importa %s; a biblioteca só pode importar stdlib e a si mesma", pkg, d)
 			}
 		}
 	}
@@ -68,8 +68,8 @@ func TestBibliotecaSoDependeDaStdlib(t *testing.T) {
 func TestDirecaoDasCamadas(t *testing.T) {
 	proibidos := map[string][]string{
 		"/firewall/sanitizar": {modulo + "/"},
-		"/nucleo/pipeline":    {modulo + "/firewall"},
-		"/firewall/entrada":   {modulo + "/nucleo", modulo + "/operadores"},
+		"/pipeline":           {modulo + "/firewall"},
+		"/firewall/entrada":   {modulo + "/pipeline", modulo + "/operadores"},
 	}
 	ds := deps(t)
 	for pkg, prefixos := range proibidos {
