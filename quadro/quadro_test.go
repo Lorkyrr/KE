@@ -249,3 +249,66 @@ func TestDevolverTambemDevolveAsOrigens(t *testing.T) {
 		t.Fatal("origem não foi zerada junto com o quadro agregado")
 	}
 }
+
+func TestPromoverTornaASaidaEntradaSemCopiar(t *testing.T) {
+	q := comCampo(t, 1, "7")
+	if err := q.Anexar(2, []byte("abc")); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.AnexarInt(3, 12); err != nil {
+		t.Fatal(err)
+	}
+	saida := q.Saida()
+	if err := q.Promover(); err != nil {
+		t.Fatal(err)
+	}
+	v, ok := q.Campo(2)
+	if !ok || string(v) != "abc" || &v[0] != &saida[CabecalhoCampo] {
+		t.Fatalf("campo 2 = %q, %v (copiou ou não achou)", v, ok)
+	}
+	if v, ok := q.Campo(3); !ok || string(v) != "12" {
+		t.Fatalf("campo 3 = %q, %v", v, ok)
+	}
+	if !q.Presente(1) || len(q.Saida()) != 0 {
+		t.Fatal("a entrada original sumiu ou a saída não esvaziou")
+	}
+	if err := q.Anexar(4, []byte("novo")); err != nil || string(q.Saida()) != string(AnexarTLV(nil, 4, []byte("novo"))) {
+		t.Fatalf("a nova saída deve começar depois do promovido: %q, %v", q.Saida(), err)
+	}
+}
+
+func TestPromoverRecusaSemMudarNada(t *testing.T) {
+	q := comCampo(t, 1, "7")
+	_ = q.Anexar(2, []byte("a"))
+	_ = q.Anexar(1, []byte("repetida"))
+	saida := string(q.Saida())
+	if err := q.Promover(); !errors.Is(err, ErrRepetida) {
+		t.Fatalf("Promover = %v; quero ErrRepetida", err)
+	}
+	if q.Presente(2) || string(q.Saida()) != saida {
+		t.Fatal("recusa deixou o quadro pela metade")
+	}
+}
+
+func TestPromoverSemSaidaNaoFazNada(t *testing.T) {
+	q := comCampo(t, 1, "7")
+	if err := q.Promover(); err != nil || !q.Presente(1) || len(q.Saida()) != 0 {
+		t.Fatalf("Promover vazio = %v", err)
+	}
+}
+
+func TestPromoverNaoAloca(t *testing.T) {
+	q := Novo()
+	in := AnexarTLV(nil, 1, []byte("7"))
+	n := testing.AllocsPerRun(100, func() {
+		q.Zerar()
+		area, _ := q.Reservar(len(in))
+		copy(area, in)
+		_ = q.Indexar()
+		_ = q.AnexarInt(2, 12)
+		_ = q.Promover()
+	})
+	if n != 0 {
+		t.Fatalf("alocações = %v", n)
+	}
+}

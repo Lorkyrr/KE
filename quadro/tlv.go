@@ -14,9 +14,27 @@ const (
 
 // Indexar percorre a entrada uma vez e marca a faixa de cada tag. Nada é
 // copiado nem decodificado: só posições.
-func (q *Quadro) Indexar() error {
-	b := q.buf[:q.entrada]
-	for i := 0; i < len(b); {
+func (q *Quadro) Indexar() error { return q.indexar(0, q.entrada) }
+
+// Promover torna a saída já escrita em entrada indexada, no mesmo buffer:
+// é como a saída de uma pipeline vira a entrada da próxima sem ser copiada.
+// A saída fica vazia e a nova começa depois. Se alguma tag já é visível,
+// recusa com ErrRepetida e o quadro fica como estava.
+func (q *Quadro) Promover() error {
+	if err := q.indexar(q.entrada, len(q.buf)); err != nil {
+		return err
+	}
+	q.entrada = len(q.buf)
+	return nil
+}
+
+// indexar marca as faixas dos campos em buf[de:ate]. O índice só muda se o
+// trecho inteiro for válido: as faixas escritas antes de um erro são de tags
+// que continuam ausentes da máscara.
+func (q *Quadro) indexar(de, ate int) error {
+	b := q.buf[:ate]
+	var novas uint64
+	for i := de; i < ate; {
 		if len(b)-i < CabecalhoCampo {
 			return ErrCorte
 		}
@@ -29,14 +47,15 @@ func (q *Quadro) Indexar() error {
 		if t >= MaxTags {
 			return fmt.Errorf("%w: %d", ErrTag, t)
 		}
-		if q.visiveis&(1<<t) != 0 {
+		if (q.visiveis|novas)&(1<<t) != 0 {
 			return fmt.Errorf("%w: %d", ErrRepetida, t)
 		}
-		q.presentes |= 1 << t
-		q.visiveis |= 1 << t
+		novas |= 1 << t
 		q.faixas[t] = Faixa{Ini: uint32(i), Fim: uint32(i + n)}
 		i += n
 	}
+	q.presentes |= novas
+	q.visiveis |= novas
 	return nil
 }
 
