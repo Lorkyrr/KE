@@ -1,0 +1,167 @@
+package quadro
+
+import (
+	"bytes"
+	"errors"
+	"testing"
+)
+
+func carregar(t testing.TB, q *Quadro, entrada []byte) {
+	t.Helper()
+	area, err := q.Reservar(len(entrada))
+	if err != nil {
+		t.Fatal(err)
+	}
+	copy(area, entrada) // faz o papel da leitura do transporte
+}
+
+func TestIndexarMarcaFaixasSemCopiar(t *testing.T) {
+	q := Novo()
+	in := AnexarTLV(nil, 3, []byte("1990"))
+	in = AnexarTLV(in, 7, []byte("2"))
+	carregar(t, q, in)
+	if err := q.Indexar(); err != nil {
+		t.Fatal(err)
+	}
+	v, ok := q.Campo(3)
+	if !ok || string(v) != "1990" {
+		t.Fatalf("campo 3 = %q, %v", v, ok)
+	}
+	if &v[0] != &q.buf[CabecalhoCampo] {
+		t.Fatal("Campo copiou o dado em vez de devolver uma janela")
+	}
+	if cap(v) != len(v) {
+		t.Fatal("janela permite append sobre o campo vizinho")
+	}
+	if q.Presente(5) {
+		t.Fatal("tag ausente marcada como presente")
+	}
+}
+
+func TestIndexarRecusa(t *testing.T) {
+	casos := map[string]struct {
+		in  []byte
+		err error
+	}{
+		"corte no cabecalho": {[]byte{0, 1, 0}, ErrCorte},
+		"corte no valor":     {[]byte{0, 1, 0, 5, 'a'}, ErrCorte},
+		"tag fora":           {AnexarTLV(nil, MaxTags, nil), ErrTag},
+		"repetida":           {AnexarTLV(AnexarTLV(nil, 1, nil), 1, nil), ErrRepetida},
+	}
+	for nome, c := range casos {
+		t.Run(nome, func(t *testing.T) {
+			q := Novo()
+			carregar(t, q, c.in)
+			if err := q.Indexar(); !errors.Is(err, c.err) {
+				t.Fatalf("erro = %v, quero %v", err, c.err)
+			}
+		})
+	}
+}
+
+func TestAnexarNoMesmoBufferSemRealocar(t *testing.T) {
+	q := Novo()
+	carregar(t, q, AnexarTLV(nil, 1, []byte("x")))
+	base := &q.buf[:1][0]
+	if err := q.AnexarInt(2, -42); err != nil {
+		t.Fatal(err)
+	}
+	if &q.buf[:1][0] != base {
+		t.Fatal("buffer realocado")
+	}
+	if want := AnexarTLV(nil, 2, []byte("-42")); !bytes.Equal(q.Saida(), want) {
+		t.Fatalf("saida = %v, quero %v", q.Saida(), want)
+	}
+}
+
+func TestAnexarSemCapacidadeRecusa(t *testing.T) {
+	q := Novo()
+	carregar(t, q, make([]byte, Capacidade-CabecalhoCampo))
+	if err := q.Anexar(1, []byte("a")); !errors.Is(err, ErrCheio) {
+		t.Fatalf("erro = %v, quero ErrCheio", err)
+	}
+	if err := q.AnexarInt(1, 1); !errors.Is(err, ErrCheio) {
+		t.Fatalf("erro = %v, quero ErrCheio", err)
+	}
+}
+
+func TestDevolverApagaODado(t *testing.T) {
+	q := Novo()
+	carregar(t, q, AnexarTLV(nil, 1, []byte("12345678909")))
+	_ = q.Indexar()
+	usado := q.buf[:len(q.buf)]
+	q.Zerar()
+	if !bytes.Equal(usado, make([]byte, len(usado))) {
+		t.Fatal("bytes usados não foram sobrescritos")
+	}
+	if q.Presente(1) || len(q.buf) != 0 {
+		t.Fatal("índice não foi limpo")
+	}
+}
+
+func TestCaminhoNaoAloca(t *testing.T) {
+	q := Novo()
+	in := AnexarTLV(AnexarTLV(nil, 3, []byte("1990")), 7, []byte("2"))
+	allocs := testing.AllocsPerRun(100, func() {
+		q.Zerar()
+		carregar(t, q, in)
+		if err := q.Indexar(); err != nil {
+			t.Fatal(err)
+		}
+		v, _ := q.Campo(3)
+		if err := q.Anexar(9, v); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if allocs != 0 {
+		t.Fatalf("%v alocações por comando, quero 0", allocs)
+	}
+}
+
+func FuzzIndexar(f *testing.F) {
+	f.Add(AnexarTLV(AnexarTLV(nil, 3, []byte("1990")), 7, []byte("2")))
+	f.Add([]byte{0, 1, 0xFF, 0xFF})
+	f.Fuzz(func(t *testing.T, in []byte) {
+		if len(in) > Capacidade {
+			return
+		}
+		q := Novo()
+		carregar(t, q, in)
+		if q.Indexar() != nil {
+			return
+		}
+		for tag := range Tag(MaxTags) {
+			if f, ok := q.Faixa(tag); ok && (f.Ini > f.Fim || int(f.Fim) > len(in)) {
+				t.Fatalf("faixa %v fora da entrada de %d bytes", f, len(in))
+			}
+		}
+	})
+}
+
+// Mede o que a Faixa evita: entregar o campo a cada etapa como cópia.
+var (
+	sumidouro  int
+	sumidouroS string
+)
+
+func BenchmarkCampoPorFaixa(b *testing.B) {
+	q := Novo()
+	carregar(b, q, AnexarTLV(nil, 1, bytes.Repeat([]byte("a"), 512)))
+	_ = q.Indexar()
+	b.ReportAllocs()
+	for b.Loop() {
+		v, _ := q.Campo(1)
+		sumidouro += len(v)
+	}
+}
+
+func BenchmarkCampoPorCopia(b *testing.B) {
+	q := Novo()
+	carregar(b, q, AnexarTLV(nil, 1, bytes.Repeat([]byte("a"), 512)))
+	_ = q.Indexar()
+	b.ReportAllocs()
+	for b.Loop() {
+		v, _ := q.Campo(1)
+		sumidouroS = string(v)
+	}
+}
