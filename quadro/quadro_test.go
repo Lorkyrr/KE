@@ -165,3 +165,87 @@ func BenchmarkCampoPorCopia(b *testing.B) {
 		sumidouroS = string(v)
 	}
 }
+
+func comCampo(t testing.TB, tag Tag, valor string) *Quadro {
+	t.Helper()
+	q := Novo()
+	carregar(t, q, AnexarTLV(nil, tag, []byte(valor)))
+	if err := q.Indexar(); err != nil {
+		t.Fatal(err)
+	}
+	return q
+}
+
+func TestLigarEnxergaCamposDasOrigensSemCopiar(t *testing.T) {
+	a, b := comCampo(t, 3, "1990"), comCampo(t, 7, "2")
+	q := Novo()
+	if err := q.Ligar(a); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.Ligar(b); err != nil {
+		t.Fatal(err)
+	}
+	v, ok := q.Campo(3)
+	if !ok || string(v) != "1990" || &v[0] != &a.buf[CabecalhoCampo] {
+		t.Fatalf("campo 3 = %q, %v (copiou ou não achou)", v, ok)
+	}
+	if v, ok := q.Campo(7); !ok || string(v) != "2" {
+		t.Fatalf("campo 7 = %q, %v", v, ok)
+	}
+	if q.Presente(5) {
+		t.Fatal("tag ausente marcada como presente")
+	}
+	if _, ok := q.Faixa(3); ok {
+		t.Fatal("Faixa é posição no buffer próprio; campo de origem não tem faixa aqui")
+	}
+	if n := testing.AllocsPerRun(100, func() { q.Campo(7) }); n != 0 {
+		t.Fatalf("Campo via origem aloca %v", n)
+	}
+}
+
+func TestLigarRecusa(t *testing.T) {
+	q := Novo()
+	if err := q.Ligar(q); !errors.Is(err, ErrOrigem) {
+		t.Errorf("ligar a si mesmo = %v", err)
+	}
+	if err := q.Ligar(nil); !errors.Is(err, ErrOrigem) {
+		t.Errorf("ligar nil = %v", err)
+	}
+	if err := q.Ligar(comCampo(t, 3, "1")); err != nil {
+		t.Fatal(err)
+	}
+	if err := q.Ligar(comCampo(t, 3, "2")); !errors.Is(err, ErrRepetida) {
+		t.Errorf("tag repetida entre origens = %v", err)
+	}
+	for i := 1; i < MaxOrigens; i++ {
+		if err := q.Ligar(comCampo(t, Tag(10+i), "x")); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := q.Ligar(comCampo(t, 40, "x")); !errors.Is(err, ErrCheio) {
+		t.Errorf("origem além do limite = %v", err)
+	}
+}
+
+func TestIndexarRecusaTagJaVisivelPorOrigem(t *testing.T) {
+	q := Novo()
+	if err := q.Ligar(comCampo(t, 3, "1")); err != nil {
+		t.Fatal(err)
+	}
+	carregar(t, q, AnexarTLV(nil, 3, []byte("2")))
+	if err := q.Indexar(); !errors.Is(err, ErrRepetida) {
+		t.Fatalf("Indexar = %v; quero ErrRepetida", err)
+	}
+}
+
+func TestDevolverTambemDevolveAsOrigens(t *testing.T) {
+	a := comCampo(t, 3, "dado pessoal")
+	q := Novo()
+	if err := q.Ligar(a); err != nil {
+		t.Fatal(err)
+	}
+	Devolver(q)
+	if a.Presente(3) || len(a.buf) != 0 || q.Presente(3) {
+		t.Fatal("origem não foi zerada junto com o quadro agregado")
+	}
+}

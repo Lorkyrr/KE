@@ -29,10 +29,11 @@ func (q *Quadro) Indexar() error {
 		if t >= MaxTags {
 			return fmt.Errorf("%w: %d", ErrTag, t)
 		}
-		if q.presentes&(1<<t) != 0 {
+		if q.visiveis&(1<<t) != 0 {
 			return fmt.Errorf("%w: %d", ErrRepetida, t)
 		}
 		q.presentes |= 1 << t
+		q.visiveis |= 1 << t
 		q.faixas[t] = Faixa{Ini: uint32(i), Fim: uint32(i + n)}
 		i += n
 	}

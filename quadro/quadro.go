@@ -19,6 +19,8 @@ const (
 	// MaxRegs é o tamanho do banco de registradores que os operadores usam
 	// para resultados intermediários (valores, não bytes).
 	MaxRegs = 8
+	// MaxOrigens é quantos quadros um quadro de junção enxerga (fan-in).
+	MaxOrigens = 4
 	// Capacidade é fixa: o buffer nunca cresce, então nenhum append realoca
 	// e move o dado por trás de quem guarda uma Faixa.
 	Capacidade = 64 << 10
@@ -39,6 +41,7 @@ var (
 	ErrRepetida = errors.New("quadro: tag repetida")
 	ErrCheio    = errors.New("quadro: sem capacidade")
 	ErrOcupado  = errors.New("quadro: já tem entrada")
+	ErrOrigem   = errors.New("quadro: origem inválida")
 )
 
 // Quadro guarda um comando inteiro. len(buf) é o que já foi escrito
@@ -47,7 +50,10 @@ type Quadro struct {
 	buf       []byte
 	entrada   int
 	faixas    [MaxTags]Faixa
-	presentes uint64
+	presentes uint64 // tags indexadas neste buffer
+	visiveis  uint64 // presentes + as de todas as origens
+	origens   [MaxOrigens]*Quadro
+	nOrigens  int
 	Reg       [MaxRegs]int64
 }
 
@@ -62,6 +68,9 @@ func Pegar() *Quadro { return pool.Get().(*Quadro) }
 // Devolver zera e devolve ao pool. Depois disso, quem devolveu não toca
 // mais no quadro nem em nenhuma fatia obtida dele.
 func Devolver(q *Quadro) {
+	for _, o := range q.origens[:q.nOrigens] {
+		Devolver(o)
+	}
 	q.Zerar()
 	pool.Put(q)
 }
@@ -74,6 +83,9 @@ func (q *Quadro) Zerar() {
 	q.entrada = 0
 	q.faixas = [MaxTags]Faixa{}
 	q.presentes = 0
+	q.visiveis = 0
+	q.origens = [MaxOrigens]*Quadro{}
+	q.nOrigens = 0
 	q.Reg = [MaxRegs]int64{}
 }
 
@@ -91,14 +103,34 @@ func (q *Quadro) Reservar(n int) ([]byte, error) {
 	return q.buf[:n:n], nil
 }
 
-// Presente diz se a tag apareceu na entrada indexada.
-func (q *Quadro) Presente(t Tag) bool {
-	return t < MaxTags && q.presentes&(1<<t) != 0
+// Ligar faz o quadro enxergar os campos de o sem copiá-los (fan-in da
+// junção). A posse de o passa para q: ninguém mais o usa, e Devolver(q)
+// devolve as origens junto. Tag que já é visível em q recusa com ErrRepetida.
+func (q *Quadro) Ligar(o *Quadro) error {
+	if o == nil || o == q {
+		return ErrOrigem
+	}
+	if q.nOrigens == MaxOrigens {
+		return ErrCheio
+	}
+	if q.visiveis&o.visiveis != 0 {
+		return ErrRepetida
+	}
+	q.origens[q.nOrigens] = o
+	q.nOrigens++
+	q.visiveis |= o.visiveis
+	return nil
 }
 
-// Faixa devolve a posição do campo na entrada.
+// Presente diz se a tag é visível: indexada na entrada própria ou numa origem.
+func (q *Quadro) Presente(t Tag) bool {
+	return t < MaxTags && q.visiveis&(1<<t) != 0
+}
+
+// Faixa devolve a posição do campo no buffer próprio. Campo de origem não
+// tem faixa aqui: a faixa só vale dentro do buffer que a indexou.
 func (q *Quadro) Faixa(t Tag) (Faixa, bool) {
-	if !q.Presente(t) {
+	if t >= MaxTags || q.presentes&(1<<t) == 0 {
 		return Faixa{}, false
 	}
 	return q.faixas[t], true
@@ -108,11 +140,18 @@ func (q *Quadro) Faixa(t Tag) (Faixa, bool) {
 // cortada no fim do campo: um append de quem recebe não escreve por cima
 // do campo vizinho, aloca outro array.
 func (q *Quadro) Campo(t Tag) ([]byte, bool) {
-	f, ok := q.Faixa(t)
-	if !ok {
+	if f, ok := q.Faixa(t); ok {
+		return q.buf[f.Ini:f.Fim:f.Fim], true
+	}
+	if !q.Presente(t) {
 		return nil, false
 	}
-	return q.buf[f.Ini:f.Fim:f.Fim], true
+	for _, o := range q.origens[:q.nOrigens] {
+		if v, ok := o.Campo(t); ok {
+			return v, true
+		}
+	}
+	return nil, false
 }
 
 // Saida é o que foi anexado depois da entrada, pronto para o transporte.
