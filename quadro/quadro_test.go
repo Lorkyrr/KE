@@ -312,3 +312,85 @@ func TestPromoverNaoAloca(t *testing.T) {
 		t.Fatalf("alocações = %v", n)
 	}
 }
+
+func TestSoltarEAcoplarRegistramORastro(t *testing.T) {
+	q := Novo()
+	if q.Solto() {
+		t.Fatal("quadro novo nasce acoplado")
+	}
+	if err := q.Soltar(1); err != nil || !q.Solto() {
+		t.Fatalf("Soltar = %v, solto = %v", err, q.Solto())
+	}
+	if err := q.Acoplar(2); err != nil || q.Solto() {
+		t.Fatalf("Acoplar = %v, solto = %v", err, q.Solto())
+	}
+	quer := []Marca{{Pipeline: 1}, {Pipeline: 2, Acoplou: true}}
+	if got := q.Marcas(nil); len(got) != 2 || got[0] != quer[0] || got[1] != quer[1] {
+		t.Fatalf("rastro = %v; quero %v", got, quer)
+	}
+}
+
+func TestPosseInvalidaRecusa(t *testing.T) {
+	q := Novo()
+	if err := q.Acoplar(1); !errors.Is(err, ErrAcoplado) {
+		t.Errorf("acoplar quadro que já está acoplado = %v", err)
+	}
+	_ = q.Soltar(1)
+	if err := q.Soltar(1); !errors.Is(err, ErrSolto) {
+		t.Errorf("soltar duas vezes = %v", err)
+	}
+	if err := q.Anexar(1, []byte("x")); !errors.Is(err, ErrSolto) {
+		t.Errorf("Anexar em quadro solto = %v", err)
+	}
+	if err := q.AnexarInt(1, 7); !errors.Is(err, ErrSolto) {
+		t.Errorf("AnexarInt em quadro solto = %v", err)
+	}
+	if err := q.Promover(); !errors.Is(err, ErrSolto) {
+		t.Errorf("Promover em quadro solto = %v", err)
+	}
+	if len(q.Marcas(nil)) != 1 {
+		t.Error("recusa não pode gravar marca")
+	}
+}
+
+func TestRastroGuardaOsUltimosSaltosEmOrdem(t *testing.T) {
+	q := Novo()
+	for p := range uint16(MaxMarcas) {
+		_ = q.Soltar(p)
+		_ = q.Acoplar(p + 1)
+	}
+	got := q.Marcas(nil)
+	if len(got) != MaxMarcas {
+		t.Fatalf("len = %d", len(got))
+	}
+	if ultima := got[MaxMarcas-1]; ultima != (Marca{Pipeline: MaxMarcas, Acoplou: true}) {
+		t.Fatalf("última marca = %v", ultima)
+	}
+	for i := 1; i < len(got); i++ {
+		if got[i].Pipeline < got[i-1].Pipeline {
+			t.Fatalf("fora de ordem: %v", got)
+		}
+	}
+}
+
+func TestZerarVoltaAcopladoESemRastro(t *testing.T) {
+	q := Novo()
+	_ = q.Soltar(1)
+	q.Zerar()
+	if q.Solto() || len(q.Marcas(nil)) != 0 {
+		t.Fatal("quadro reaproveitado herdou posse ou rastro")
+	}
+}
+
+func TestTransmissaoNaoAloca(t *testing.T) {
+	q := Novo()
+	dst := make([]Marca, 0, MaxMarcas)
+	n := testing.AllocsPerRun(100, func() {
+		_ = q.Soltar(1)
+		_ = q.Acoplar(2)
+		dst = q.Marcas(dst[:0])
+	})
+	if n != 0 {
+		t.Fatalf("alocações = %v", n)
+	}
+}

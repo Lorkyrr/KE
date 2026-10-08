@@ -54,6 +54,9 @@ type Quadro struct {
 	visiveis  uint64 // presentes + as de todas as origens
 	origens   [MaxOrigens]*Quadro
 	nOrigens  int
+	solto     bool // em trânsito entre pipelines (posse.go)
+	marcas    [MaxMarcas]Marca
+	nMarcas   int
 	Reg       [MaxRegs]int64
 }
 
@@ -86,6 +89,9 @@ func (q *Quadro) Zerar() {
 	q.visiveis = 0
 	q.origens = [MaxOrigens]*Quadro{}
 	q.nOrigens = 0
+	q.solto = false
+	q.marcas = [MaxMarcas]Marca{}
+	q.nMarcas = 0
 	q.Reg = [MaxRegs]int64{}
 }
 

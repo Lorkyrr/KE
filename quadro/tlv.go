@@ -21,6 +21,9 @@ func (q *Quadro) Indexar() error { return q.indexar(0, q.entrada) }
 // A saída fica vazia e a nova começa depois. Se alguma tag já é visível,
 // recusa com ErrRepetida e o quadro fica como estava.
 func (q *Quadro) Promover() error {
+	if q.solto {
+		return ErrSolto
+	}
 	if err := q.indexar(q.entrada, len(q.buf)); err != nil {
 		return err
 	}
@@ -62,6 +65,9 @@ func (q *Quadro) indexar(de, ate int) error {
 // Anexar escreve um campo na saída, no mesmo buffer. Sem capacidade,
 // recusa em vez de realocar: realocar moveria o dado em silêncio.
 func (q *Quadro) Anexar(t Tag, valor []byte) error {
+	if q.solto {
+		return ErrSolto
+	}
 	if len(valor) > MaxValor || cap(q.buf)-len(q.buf) < CabecalhoCampo+len(valor) {
 		return ErrCheio
 	}
@@ -71,6 +77,9 @@ func (q *Quadro) Anexar(t Tag, valor []byte) error {
 
 // AnexarInt escreve v em decimal direto no buffer, sem string intermediária.
 func (q *Quadro) AnexarInt(t Tag, v int64) error {
+	if q.solto {
+		return ErrSolto
+	}
 	const maxDigitos = 20 // "-9223372036854775808"
 	if cap(q.buf)-len(q.buf) < CabecalhoCampo+maxDigitos {
 		return ErrCheio
