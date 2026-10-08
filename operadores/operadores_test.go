@@ -76,6 +76,18 @@ func TestAritmeticaConfereEstouro(t *testing.T) {
 		{"soma negativa", operadores.Somar, -2, -3, -5, nil},
 		{"soma estoura", operadores.Somar, math.MaxInt64, 1, 0, operadores.ErrEstouro},
 		{"soma estoura para baixo", operadores.Somar, math.MinInt64, -1, 0, operadores.ErrEstouro},
+		{"subtração", operadores.Subtrair, 5, 3, 2, nil},
+		{"subtração negativa", operadores.Subtrair, 3, 5, -2, nil},
+		{"subtração de negativo", operadores.Subtrair, -1, math.MinInt64, math.MaxInt64, nil},
+		{"subtração estoura", operadores.Subtrair, math.MinInt64, 1, 0, operadores.ErrEstouro},
+		{"subtração estoura para cima", operadores.Subtrair, math.MaxInt64, -1, 0, operadores.ErrEstouro},
+		{"0 - MinInt64", operadores.Subtrair, 0, math.MinInt64, 0, operadores.ErrEstouro},
+		{"divisão exata", operadores.Dividir, 6000, 3, 2000, nil},
+		{"divisão exata negativa", operadores.Dividir, -6000, 3, -2000, nil},
+		{"divisão por zero", operadores.Dividir, 1, 0, 0, operadores.ErrDivisaoPorZero},
+		{"MinInt64 / -1", operadores.Dividir, math.MinInt64, -1, 0, operadores.ErrEstouro},
+		{"divisão inexata", operadores.Dividir, 10, 3, 0, operadores.ErrInexato},
+		{"divisão inexata negativa", operadores.Dividir, -5, 2, 0, operadores.ErrInexato},
 		{"produto", operadores.Multiplicar, 1990, 3, 5970, nil},
 		{"produto por zero", operadores.Multiplicar, 0, math.MinInt64, 0, nil},
 		{"produto negativo", operadores.Multiplicar, -4, 5, -20, nil},
@@ -95,6 +107,67 @@ func TestAritmeticaConfereEstouro(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestArredondar(t *testing.T) {
+	const (
+		T = operadores.Truncar
+		P = operadores.Piso
+		C = operadores.Teto
+		A = operadores.MeioAcima
+		E = operadores.MeioPar
+	)
+	casos := []struct {
+		a, b int64
+		quer map[operadores.Modo]int64
+	}{
+		{6, 3, map[operadores.Modo]int64{T: 2, P: 2, C: 2, A: 2, E: 2}},
+		{10, 3, map[operadores.Modo]int64{T: 3, P: 3, C: 4, A: 3, E: 3}},
+		{-10, 3, map[operadores.Modo]int64{T: -3, P: -4, C: -3, A: -3, E: -3}},
+		{10, -3, map[operadores.Modo]int64{T: -3, P: -4, C: -3, A: -3, E: -3}},
+		{-10, -3, map[operadores.Modo]int64{T: 3, P: 3, C: 4, A: 3, E: 3}},
+		{5, 2, map[operadores.Modo]int64{T: 2, P: 2, C: 3, A: 3, E: 2}},
+		{-5, 2, map[operadores.Modo]int64{T: -2, P: -3, C: -2, A: -3, E: -2}},
+		{7, 2, map[operadores.Modo]int64{T: 3, P: 3, C: 4, A: 4, E: 4}},
+		{-7, 2, map[operadores.Modo]int64{T: -3, P: -4, C: -3, A: -4, E: -4}},
+		{2, 3, map[operadores.Modo]int64{T: 0, P: 0, C: 1, A: 1, E: 1}},
+		{math.MinInt64, 2, map[operadores.Modo]int64{T: math.MinInt64 / 2, P: math.MinInt64 / 2, C: math.MinInt64 / 2, A: math.MinInt64 / 2, E: math.MinInt64 / 2}},
+		{math.MinInt64, math.MaxInt64, map[operadores.Modo]int64{T: -1, P: -2, C: -1, A: -1, E: -1}},
+	}
+	for _, c := range casos {
+		for modo, quer := range c.quer {
+			q := quadro.Novo()
+			q.Reg[1], q.Reg[2] = c.a, c.b
+			if err := operadores.Arredondar(operadores.R0, operadores.R1, operadores.R2, modo)(q); err != nil || q.Reg[0] != quer {
+				t.Errorf("Arredondar(%d, %d, modo %d) = %d, %v; quero %d", c.a, c.b, modo, q.Reg[0], err, quer)
+			}
+		}
+	}
+}
+
+func TestArredondarRecusa(t *testing.T) {
+	for _, c := range []struct {
+		a, b int64
+		err  error
+	}{
+		{1, 0, operadores.ErrDivisaoPorZero},
+		{math.MinInt64, -1, operadores.ErrEstouro},
+	} {
+		q := quadro.Novo()
+		q.Reg[1], q.Reg[2] = c.a, c.b
+		if err := operadores.Arredondar(operadores.R0, operadores.R1, operadores.R2, operadores.Truncar)(q); !errors.Is(err, c.err) {
+			t.Errorf("Arredondar(%d, %d) = %v; quero %v", c.a, c.b, err, c.err)
+		}
+	}
+}
+
+func TestModoInvalidoQuebraNaDeclaracao(t *testing.T) {
+	defer func() {
+		if recover() == nil {
+			t.Fatal("modo inexistente não quebrou na declaração")
+		}
+	}()
+	operadores.Arredondar(operadores.R0, operadores.R1, operadores.R2, operadores.Modo(99))
 }
 
 func TestSeqParaNoPrimeiroErroEDizAEtapa(t *testing.T) {

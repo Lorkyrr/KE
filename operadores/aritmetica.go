@@ -23,6 +23,49 @@ func Somar(dst, a, b Reg) Op {
 	}
 }
 
+// Subtrair faz dst = a - b.
+func Subtrair(dst, a, b Reg) Op {
+	regs(dst, a, b)
+	return func(q *quadro.Quadro) error {
+		x, y := q.Reg[a], q.Reg[b]
+		d := x - y
+		if (y > 0 && d > x) || (y < 0 && d < x) {
+			return ErrEstouro
+		}
+		q.Reg[dst] = d
+		return nil
+	}
+}
+
+// Dividir faz dst = a / b e só aceita divisão exata: o resto nunca some em
+// silêncio. Para quociente inexato, use Arredondar e escolha o modo.
+func Dividir(dst, a, b Reg) Op {
+	regs(dst, a, b)
+	return func(q *quadro.Quadro) error {
+		quo, resto, err := dividirComResto(q.Reg[a], q.Reg[b])
+		if err != nil {
+			return err
+		}
+		if resto != 0 {
+			return ErrInexato
+		}
+		q.Reg[dst] = quo
+		return nil
+	}
+}
+
+// dividirComResto recusa divisor zero e MinInt64 / -1, o único quociente que
+// não cabe em int64.
+func dividirComResto(x, y int64) (quo, resto int64, err error) {
+	if y == 0 {
+		return 0, 0, ErrDivisaoPorZero
+	}
+	if x == math.MinInt64 && y == -1 {
+		return 0, 0, ErrEstouro
+	}
+	return x / y, x % y, nil
+}
+
 // Multiplicar faz dst = a * b.
 func Multiplicar(dst, a, b Reg) Op {
 	regs(dst, a, b)

@@ -40,6 +40,9 @@ var (
 	ErrAusente = errors.New("operadores: campo ausente")
 	ErrFormato = errors.New("operadores: formato inválido")
 	ErrEstouro = errors.New("operadores: estouro de inteiro")
+
+	ErrDivisaoPorZero = errors.New("operadores: divisão por zero")
+	ErrInexato        = errors.New("operadores: divisão não é exata")
 )
 
 // Seq compõe operadores em ordem; para no primeiro erro, dizendo em qual
