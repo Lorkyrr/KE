@@ -39,6 +39,8 @@ go get github.com/lorkyrr/ke
 
 ## Uso
 
+Quer entender como uma função complexa vira uma cadeia de operadores, com exemplos passo a passo? Veja o [guia das funções](docs/guia-de-funcoes.md).
+
 ### Duas regras, impostas por teste
 
 - **Zero-cópia.** O dado entra no quadro uma vez, direto do fio. Daí em diante passam só `*Quadro` e `Faixa`, e a resposta sai do mesmo buffer. `TestCaminhoNaoAloca` (contrato → receita) e `TestTransporteNaoAloca` (`Receber` e `Enviar`) cobram 0 alocações.
