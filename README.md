@@ -171,6 +171,14 @@ A única entrada e a única saída de dados do KE.
 
 Posse: quem encaminha entrega o quadro junto com o ponteiro e não toca mais nele. Quem recebe passa a ser o dono e o devolve ao pool no fim. Em caso de recusa, a posse continua com quem chamou.
 
+### Referência: `reflexo`
+
+| Símbolo | O que faz |
+| --- | --- |
+| `Ler(dir)` / `LerFonte(nome, src)` | Extrai as chamadas a `pipeline.Declarar` do código, sem executar nada |
+| `r.Problemas()` | O que foge do guia: etapa que não é operador, entrada não declarada, `Transmitir` fora do fim, sem saída |
+| `r.Reflexo()` | Como a receita deveria estar descrita, com ✓ ou ✗ por etapa |
+
 ## Desenvolvimento
 
 ```bash

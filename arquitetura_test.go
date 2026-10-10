@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/lorkyrr/ke/reflexo"
 )
 
 const modulo = "github.com/lorkyrr/ke"
@@ -138,4 +140,21 @@ func instrucao(ft *ast.FuncType) bool {
 	}
 	res, ok := ft.Results.List[0].Type.(*ast.Ident)
 	return ok && res.Name == "error"
+}
+
+// Regra do guia (§8): receita é uma lista de operadores, com todas as
+// entradas declaradas. O reflexo mostra como a receita deveria ser descrita.
+func TestReceitasUsamOperadoresAoMaximo(t *testing.T) {
+	rs, err := reflexo.Ler(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rs) == 0 {
+		t.Fatal("nenhuma receita encontrada; a checagem não está olhando para nada")
+	}
+	for _, r := range rs {
+		if len(r.Problemas()) > 0 {
+			t.Errorf("%s\n  problemas: %s", r.Reflexo(), strings.Join(r.Problemas(), "; "))
+		}
+	}
 }
