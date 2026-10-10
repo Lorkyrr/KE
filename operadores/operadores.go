@@ -47,10 +47,23 @@ var (
 
 // Seq compõe operadores em ordem; para no primeiro erro, dizendo em qual
 // etapa. É a única forma de montar um processo.
+//
+// Se um passo transmite o quadro (ErrTransmitido), nada mais pode tocar nele:
+// no último passo o aviso sobe como está, para o Seq de fora e a Receita
+// tratarem; antes do último, o passo seguinte é recusado com ErrSolto sem
+// ler o quadro, que já é de outra pipeline.
 func Seq(ops ...Op) Op {
 	return func(q *quadro.Quadro) error {
 		for i, op := range ops {
-			if err := op(q); err != nil {
+			err := op(q)
+			switch {
+			case err == nil:
+			case errors.Is(err, ErrTransmitido):
+				if i < len(ops)-1 {
+					return fmt.Errorf("etapa %d: %w", i+1, quadro.ErrSolto)
+				}
+				return err
+			default:
 				return fmt.Errorf("etapa %d: %w", i, err)
 			}
 		}

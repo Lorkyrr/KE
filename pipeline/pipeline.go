@@ -33,6 +33,9 @@ func (r Receita) Executar(q *quadro.Quadro) error {
 		return fmt.Errorf("%s: %w (tag %d)", r.Nome, ErrAguardando, t)
 	}
 	if err := r.etapas(q); err != nil {
+		if errors.Is(err, operadores.ErrTransmitido) {
+			return nil // o quadro seguiu para outra pipeline; não toque mais nele
+		}
 		return fmt.Errorf("%s: %w", r.Nome, err)
 	}
 	return nil

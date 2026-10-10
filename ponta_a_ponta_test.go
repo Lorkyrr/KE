@@ -140,3 +140,43 @@ func TestCaminhoNaoAloca(t *testing.T) {
 		t.Fatalf("%v alocações por comando, quero 0", allocs)
 	}
 }
+
+// Fluxo entre pipelines com a rota real, sob -race: a origem transmite e não
+// toca mais no quadro; o destino o acopla e termina o trabalho.
+func TestTransmitirEntrePipelinesPelaRota(t *testing.T) {
+	const origem, destino uint16 = 1, 2
+	rota := interno.Nova(4)
+	soma := pipeline.Declarar("origem", []quadro.Tag{tagPreco, tagQuantidade},
+		operadores.Converter(operadores.R0, tagPreco),
+		operadores.Converter(operadores.R1, tagQuantidade),
+		operadores.Multiplicar(operadores.R2, operadores.R0, operadores.R1),
+		operadores.Escrever(tagTotal, operadores.R2),
+		operadores.Transmitir(origem, rota.Encaminhar),
+	)
+	pronto := make(chan []quadro.Marca, 1)
+	go func() {
+		for q := range rota.Recebidos() {
+			if err := q.Acoplar(destino); err != nil {
+				t.Error(err)
+			}
+			pronto <- q.Marcas(nil)
+			quadro.Devolver(q)
+		}
+	}()
+
+	q := quadro.Pegar()
+	area, _ := q.Reservar(len(mensagem([2]string{"1", "1990"}, [2]string{"2", "3"})) - 4)
+	copy(area, mensagem([2]string{"1", "1990"}, [2]string{"2", "3"})[4:])
+	if err := entrada.Verificar(q, contrato); err != nil {
+		t.Fatal(err)
+	}
+	if err := soma.Executar(q); err != nil {
+		t.Fatal(err) // depois daqui q é do destino: não toque mais
+	}
+	marcas := <-pronto
+	rota.Fechar()
+	quero := []quadro.Marca{{Pipeline: origem}, {Pipeline: destino, Acoplou: true}}
+	if len(marcas) != 2 || marcas[0] != quero[0] || marcas[1] != quero[1] {
+		t.Fatalf("rastro = %v, quero %v", marcas, quero)
+	}
+}
