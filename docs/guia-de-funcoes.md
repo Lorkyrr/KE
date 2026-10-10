@@ -279,6 +279,10 @@ go receitaA.Executar(qA)
 go receitaB.Executar(qB)
 ```
 
+### Conferir se a receita está decomposta
+
+`reflexo.Ler(dir)` lê o código-fonte e devolve cada `pipeline.Declarar`. Para cada `Receita`, `Problemas()` aponta o que foge desta seção (etapa que não é chamada a `operadores.X`, tag lida e não declarada, `Transmitir` fora do fim, receita sem saída) e `Reflexo()` mostra como ela deveria estar descrita, com ✓ ou ✗ por etapa. `TestReceitasUsamOperadoresAoMaximo` roda isso em todo o repositório. A análise é estática, pelo nome do pacote `operadores`.
+
 ## 9. Como escrever um operador novo
 
 Só quando uma receita real pedir (ADR 0001). Todo operador segue o mesmo molde: **valida na montagem, devolve um closure, e o closure só lê registradores e campos por faixa**. Exemplo ilustrativo (`Negar` não existe na biblioteca):
