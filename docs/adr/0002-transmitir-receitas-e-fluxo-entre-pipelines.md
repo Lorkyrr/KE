@@ -1,6 +1,6 @@
 # 0002. Transmitir, receitas como mini-threads e fluxo entre pipelines
 
-- **Status:** parcial. A base está implementada; o desenho do fluxo por campo
+- **Status:** parcial, parado (ver ADR 0003). A base está implementada; o desenho do fluxo por campo
   está decidido no papel, com pendências listadas abaixo.
 - **Data:** 2026-10-08
 

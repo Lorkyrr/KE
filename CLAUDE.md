@@ -4,6 +4,8 @@ KE (KEngine 2.0): biblioteca Go de quadros, operadores e receitas, mais o firewa
 
 Este é um repositório **Go, só stdlib**. As regras de Kotlin/Micronaut/React do `CLAUDE.md` global não se aplicam aqui.
 
+> **Projeto em pausa desde 2026-10-10.** Não implemente funcionalidade nova. A intenção é seguir como biblioteca de transpilação para Python (classes Python compiladas para Go, dentro do interpretador Python, para dar multi-thread leve ao Python); o desenho ainda não existe. Contexto e perguntas em aberto: [ADR 0003](docs/adr/0003-pausa-e-direcao-transpilador-python.md).
+
 ## Idioma
 
 Português do Brasil, com acentos, em código, comentários, mensagens de erro, testes e commits. Identificadores de domínio ficam em português (`Quadro`, `Faixa`, `Receita`, `Juncao`); erros são `ErrXxx` e dizem o pacote (`"quadro: tag repetida"`).
@@ -48,7 +50,7 @@ Antes de dizer que algo está pronto, rode os dois primeiros e cole a saída. `g
 
 ## Em aberto: não implemente sem aval
 
-O [ADR 0002](docs/adr/0002-transmitir-receitas-e-fluxo-entre-pipelines.md) lista pendências (quadro privado por execução, corrida no `Ligar`, `Juncao` executando na goroutine de quem entrega, `MaxOrigens = 4`, onde mora o adapter, e outras). `Transmitir` está decidido no papel e **não existe no código**. Pergunta sem resposta escrita continua sem resposta: pare e liste a pergunta. A primeira coisa a escrever, para a pendência 1, é o teste de duas receitas concorrentes sob `-race`, antes de qualquer correção.
+O [ADR 0002](docs/adr/0002-transmitir-receitas-e-fluxo-entre-pipelines.md) lista pendências (quadro privado por execução, corrida no `Ligar`, `Juncao` executando na goroutine de quem entrega, `MaxOrigens = 4`, onde mora o adapter, e outras). `Transmitir` do quadro inteiro existe no código; a transmissão **por campo** está decidida no papel e **não existe**. Pergunta sem resposta escrita continua sem resposta: pare e liste a pergunta. A primeira coisa a escrever, para a pendência 1, é o teste de duas receitas concorrentes sob `-race`, antes de qualquer correção.
 
 ## Processo (diretrizes e agentes)
 

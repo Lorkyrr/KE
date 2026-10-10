@@ -2,6 +2,8 @@
 
 Motor de integração multiplataforma (KEngine 2.0): uma biblioteca de quadros, operadores e receitas, e o firewall que recebe e entrega os dados.
 
+> **Em pausa desde 2026-10-10.** A intenção é continuar como uma biblioteca de transpilação para Python: uma estrutura de classes Python compilada para Go, com o Go dentro do interpretador Python, dando uma multi-thread leve ao Python. Nada disso está desenhado. Veja o [ADR 0003](docs/adr/0003-pausa-e-direcao-transpilador-python.md).
+
 ## Nível do projeto
 
 **Nível 2**: biblioteca embutida por outros projetos. O KE não disca, não escuta, não autentica e não persiste nada (`Receber` e `Enviar` recebem `io.Reader` e `io.Writer` prontos). TLS, autenticação, timeout e retry são de quem abre a conexão; a concorrência é coberta por `-race` em todo teste. Se o KE passar a abrir conexões ou guardar dados, sobe para o nível 3. Exigências de cada nível nas [Diretrizes de Código](Diretrizes-de-Codigo.md).
@@ -18,12 +20,14 @@ ecossistemas: gomod
 
 ## Status
 
-Em desenvolvimento. Funcionam hoje: o quadro com faixas, registradores, fan-in (`Ligar`), `Promover`, posse e rastro (`Soltar`/`Acoplar`); os operadores aritméticos e de conversão; `Receita` e `Juncao`; o firewall (sanitizar, contrato por tag, transporte e rota). O caminho fio → quadro → contrato → rota → receita → fio é coberto de ponta a ponta por `TestPontaAPonta`.
+Em pausa (ADR 0003). Funcionam hoje: o quadro com faixas, registradores, fan-in (`Ligar`), `Promover`, posse e rastro (`Soltar`/`Acoplar`); os operadores aritméticos, de conversão e `Transmitir` (quadro inteiro); `Receita` e `Juncao`; o verificador de receitas (`reflexo`); o firewall (sanitizar, contrato por tag, transporte e rota). O caminho fio → quadro → contrato → rota → receita → fio é coberto de ponta a ponta por `TestPontaAPonta`.
 
-**Ainda não existe** o operador `Transmitir`, que passa um campo de uma pipeline para outra. Está decidido no papel ([ADR 0002](docs/adr/0002-transmitir-receitas-e-fluxo-entre-pipelines.md)), com oito pendências. Duas afetam quem usa a biblioteca hoje:
+**Não existe** a transmissão por campo, que deixa um tipo seguir para a próxima pipeline sem esperar os outros. Está decidida no papel ([ADR 0002](docs/adr/0002-transmitir-receitas-e-fluxo-entre-pipelines.md)), com pendências, e parada junto com o resto. Duas pendências afetam quem usa a biblioteca hoje:
 
 - `Reg` mora no quadro: duas receitas rodando ao mesmo tempo **sobre o mesmo quadro** sobrescrevem os registradores uma da outra. Use um quadro por execução.
 - `Campo` de um quadro ligado (`Ligar`) só é seguro enquanto a origem não é mais tocada.
+
+Medido em 2026-10-10 (ADR 0003): uma receita de 11 operadores custa cerca de 25% a mais que a mesma conta numa função Go nativa com a mesma checagem de estouro, e escala igual entre goroutines. Cada goroutine que segura um quadro custa cerca de 64 KiB.
 
 Hooks (`.githooks/`), CI e `CHANGELOG.md` das diretrizes ainda não foram instalados neste repositório.
 
@@ -127,6 +131,7 @@ As instruções. Um `Op` é `func(*quadro.Quadro) error`; cada operador lê camp
 | --- | --- |
 | `Seq(ops...)` | Compõe operadores em ordem; para no primeiro erro e diz a etapa (`etapa 2: ...`). É a única forma de montar um processo |
 | `Converter(dst, tag)` | Lê os dígitos ASCII do campo direto da faixa para o registrador. Só dígitos 0-9, sem sinal: `ErrAusente`, `ErrFormato` ou `ErrEstouro` |
+| `Transmitir(pipeline, entrega)` | Último passo da cadeia: solta o quadro e o entrega a outra pipeline. Entrega recusada devolve o quadro à origem. Quadro inteiro, não por campo |
 | `Escrever(tag, src)` | Anexa o registrador à saída, em decimal |
 | `Somar(dst, a, b)` | `dst = a + b` |
 | `Subtrair(dst, a, b)` | `dst = a - b` |
@@ -207,6 +212,7 @@ Para quem trabalha com agentes (Claude Code, Grok), as regras do repositório es
 | --- | --- | --- |
 | `quadro` | Buffer por comando, faixas (posições), registradores, `Ligar` (fan-in), `Promover`, posse e rastro | stdlib |
 | `operadores` | As instruções e `Seq` | `quadro` |
+| `reflexo` | Confere se as receitas só usam operadores (análise estática) | stdlib |
 | `pipeline` | `Receita` (entradas exigidas + operadores) e `Juncao` (entrada sincronizada) | `operadores`, `quadro` |
 | `firewall/sanitizar` | Folhas puras sobre `[]byte` | stdlib |
 | `firewall/entrada` | Contrato declarado por tag; sem declaração, derruba | `quadro` |
@@ -231,6 +237,7 @@ Decisões de arquitetura e desvios das diretrizes ficam em `docs/adr/`.
 
 - [ADR 0001](docs/adr/0001-quadro-faixas-e-operadores-como-biblioteca.md): quadro com faixas (zero-cópia) e operadores como biblioteca.
 - [ADR 0002](docs/adr/0002-transmitir-receitas-e-fluxo-entre-pipelines.md): `Transmitir`, receitas como mini-threads e fluxo entre pipelines. Lista as pendências de desenho.
+- [ADR 0003](docs/adr/0003-pausa-e-direcao-transpilador-python.md): pausa do KE, medições de custo e escala, e a intenção de seguir como transpilador Python para Go.
 
 O desenho completo está no spec do KEngine: [`KEngine/.planning/specs/kengine-2-0-arquitetura.md`](https://github.com/Lorkyrr/KEngine).
 

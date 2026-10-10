@@ -2,6 +2,8 @@
 
 O que cada função faz, como uma função "complexa" do negócio vira uma cadeia de funções básicas, e como escrever as suas. Todos os exemplos foram executados contra o código; os números são os reais. A referência rápida (assinaturas e erros) está no [README](../README.md).
 
+> O projeto está em pausa ([ADR 0003](adr/0003-pausa-e-direcao-transpilador-python.md)). O guia descreve o código como ele está.
+
 ## 1. A ideia
 
 O KE não tem "funções grandes". Um cálculo de negócio, como o total de uma fatura, **não é uma função Go**: é uma **sequência de instruções mínimas** (operadores) que lê campos de um buffer, guarda valores em registradores e escreve a resposta no mesmo buffer. É o princípio do ISA: poucas instruções, previsíveis, e o que diferencia um processo de outro é só a ordem.
