@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"sync"
 
 	"github.com/lorkyrr/ke/quadro"
 )
@@ -21,15 +22,28 @@ const MaxEntrada = quadro.Capacidade / 2
 
 var ErrGrande = errors.New("mensagem maior que o limite")
 
+// rascunho é o que o transporte usa por mensagem. Passa por io.Reader e
+// io.Writer, então o compilador o mandaria ao heap a cada chamada; o pool
+// paga isso uma vez só.
+type rascunho struct {
+	cab  [4]byte
+	lote [2][]byte
+	bufs net.Buffers // WriteTo consome o slice; mora aqui para não ir ao heap
+}
+
+var rascunhos = sync.Pool{New: func() any { return new(rascunho) }}
+
 // Receber lê uma mensagem para dentro de q. O tamanho é conferido antes de
 // ler o corpo (spec v2 §3.2: o limite vale já no transporte), e o corpo vai
 // direto do fio para o buffer do quadro.
 func Receber(r io.Reader, q *quadro.Quadro) error {
-	var cab [4]byte
-	if _, err := io.ReadFull(r, cab[:]); err != nil {
+	rs := rascunhos.Get().(*rascunho)
+	_, err := io.ReadFull(r, rs.cab[:])
+	n := binary.BigEndian.Uint32(rs.cab[:])
+	rascunhos.Put(rs)
+	if err != nil {
 		return fmt.Errorf("ler cabeçalho: %w", err)
 	}
-	n := binary.BigEndian.Uint32(cab[:])
 	if n > MaxEntrada {
 		return ErrGrande
 	}
@@ -47,10 +61,14 @@ func Receber(r io.Reader, q *quadro.Quadro) error {
 // rede: cabeçalho e corpo saem juntos sem serem concatenados.
 func Enviar(w io.Writer, q *quadro.Quadro) error {
 	saida := q.Saida()
-	var cab [4]byte
-	binary.BigEndian.PutUint32(cab[:], uint32(len(saida)))
-	bufs := net.Buffers{cab[:], saida}
-	if _, err := bufs.WriteTo(w); err != nil {
+	rs := rascunhos.Get().(*rascunho)
+	binary.BigEndian.PutUint32(rs.cab[:], uint32(len(saida)))
+	rs.lote = [2][]byte{rs.cab[:], saida}
+	rs.bufs = rs.lote[:]
+	_, err := rs.bufs.WriteTo(w)
+	rs.lote, rs.bufs = [2][]byte{}, nil // o pool não segura o buffer do quadro
+	rascunhos.Put(rs)
+	if err != nil {
 		return fmt.Errorf("enviar: %w", err)
 	}
 	return nil
