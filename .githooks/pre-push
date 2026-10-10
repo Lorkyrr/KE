@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Gerado por estrutura.sh com os comandos testar e auditar do README.
+# Mudou o README? Apague este arquivo e rode estrutura.sh para regerar.
+# Em emergência: git push --no-verify. O CI repete estas verificações.
+set -euo pipefail
+
+rodar() {
+  if ! command -v "${1%% *}" >/dev/null 2>&1; then
+    echo "[AVISO] ${1%% *} não está instalado; só roda no CI: $1"
+    return 0
+  fi
+  echo "==> $1"
+  bash -c "$1"
+}
+
+rodar go\ test\ -race\ ./...
+rodar govulncheck\ ./...
+echo "[OK] Verificações de push passaram."

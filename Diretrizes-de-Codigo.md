@@ -672,7 +672,78 @@ Cada marcador fica sozinho na linha: um comentário HTML cujo texto é `conformi
 
 <!-- conformidade:inicio -->
 
-Nenhuma aplicação gerada nesta cópia. Na raiz de um projeto com README no protocolo, execute `./estrutura.sh`.
+### Conformidade com as Diretrizes de Código
+
+Aplicação das Diretrizes de Código **2.3.0** a **KE**, nível **2**.
+
+Motor de integração multiplataforma (KEngine 2.0): uma biblioteca de quadros, operadores e receitas, e o firewall que recebe e entrega os dados.
+
+Gerado por `estrutura.sh` em 10/10/2026 a partir do README (bloco).
+Linguagens: Go.
+Ecossistemas para o Dependabot: `gomod`.
+
+**Legenda:** ✅ cumprido · 🟡 parcial · ❌ não cumprido · ⬜ revisão humana · — não exigido neste nível.
+
+Formatação, lint, teste, auditoria e segredo reprovam a execução quando o nível os exige. Cobertura e dependência sem uso ficam no relatório e não reprovam. No nível 4, ferramenta ausente em formatação, lint ou teste também reprova.
+
+**Resultado desta execução:** aprovado.
+
+#### Checklist por nível
+
+##### Nível 1: script ou experimento pessoal
+
+| Item | Situação | Evidência |
+| --- | --- | --- |
+| Nível do projeto declarado no README **[manual]** | ✅ | bloco diretrizes e seção Nível do projeto em 2. |
+| Nenhum segredo no código ou no repositório **[hook]** | ✅ | varredura do diretório de trabalho: nenhum .env, .pem, .key, .p12, .pfx ou chave SSH (.env.example ignorado) |
+| Código formatado e sem avisos do linter **[hook] [CI]** | 🟡 | gofmt -l . — não encontrado · go vet ./... && GOOS=windows go vet ./... — não encontrado |
+| README diz o que o projeto faz e como rodar **[manual]** | ✅ | resumo no bloco e seção ## Uso. |
+| Nomes claros; comentários explicam o porquê, não o quê **[manual]** | ⬜ | Revisão humana. O script não julga nomes nem comentários. |
+
+##### Nível 2: ferramenta local
+
+| Item | Situação | Evidência |
+| --- | --- | --- |
+| Nenhum erro descartado nem aborto sobre dado externo **[manual]** | ⬜ | Go: Atribuir o erro a _, ou panic diante de arquivo, rede ou entrada do usuário. |
+| Erros novos classificados: transitório, permanente ou bug **[manual]** | ⬜ | Revisão humana. |
+| Toda entrada externa validada **[manual]** | ⬜ | Revisão humana. |
+| Testes do caminho feliz e das falhas principais passando **[hook] [CI]** | 🟡 | go test -race ./... — não encontrado |
+| Dependências sem vulnerabilidade conhecida **[hook] [CI]** | 🟡 | govulncheck ./... — não encontrado |
+| Ações destrutivas pedem confirmação **[manual]** | ⬜ | Revisão humana. |
+| "Carregando", "sem dado" e "erro" nunca parecem iguais na interface **[manual]** | ⬜ | Revisão humana. Sem interface, registre isso no README. |
+| Versão semântica e CHANGELOG atualizados a cada lançamento **[manual]** | ⬜ | Revisão humana. |
+
+##### Antes de cada versão, em qualquer nível
+
+| Item | Situação | Evidência |
+| --- | --- | --- |
+| CHANGELOG atualizado **[manual]** | 🟡 | CHANGELOG.md existe. Conferir a seção Não lançado é revisão humana. |
+| Todo desvio das diretrizes registrado em ADR ou comentário **[manual]** | ⬜ | Há docs/adr/. O conteúdo é revisão humana. |
+| Dependências sem uso removidas **[manual]** | 🟡 | go mod tidy -diff — não encontrado |
+| O nível do projeto continua o mesmo? **[manual]** | ⬜ | O script não compara com a execução anterior. Nível desta execução: 2. |
+
+#### Mecanismos
+
+Comandos desta execução. Copie os que passaram para o hook e para o CI. Os anexos E a H das diretrizes são o modelo Rust; o equivalente das outras linguagens é a coluna Comando.
+
+| Papel | Situação | Comando e evidência |
+| --- | --- | --- |
+| formatar | 🟡 | gofmt -l . — não encontrado |
+| lint | 🟡 | go vet ./... && GOOS=windows go vet ./... — não encontrado |
+| testar | 🟡 | go test -race ./... — não encontrado |
+| auditar | 🟡 | govulncheck ./... — não encontrado |
+| cobertura | — | não exigido no nível 2 |
+| dependencias-sem-uso | 🟡 | go mod tidy -diff — não encontrado |
+
+#### Erro descartado e memória
+
+| Linguagem | Erro descartado | Memória |
+| --- | --- | --- |
+| Go | Atribuir o erro a _, ou panic diante de arquivo, rede ou entrada do usuário. | Coletor de lixo. Não é desvio. |
+
+#### Como repetir
+
+Rode `estrutura.sh` de novo depois de mudar o README ou o código. A próxima execução substitui este arquivo e o miolo dos marcadores em `Diretrizes-de-Codigo.md`.
 
 <!-- conformidade:fim -->
 
