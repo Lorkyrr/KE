@@ -76,3 +76,17 @@ func TestVerificarNaoAloca(t *testing.T) {
 		t.Fatalf("%v alocações, quero 0", allocs)
 	}
 }
+
+func BenchmarkVerificar(b *testing.B) {
+	msg := append(quadro.AnexarTLV(nil, 1, []byte("1990")), quadro.AnexarTLV(nil, 2, []byte("12"))...)
+	q := quadro.Novo()
+	b.ReportAllocs()
+	for b.Loop() {
+		q.Zerar()
+		area, _ := q.Reservar(len(msg))
+		copy(area, msg)
+		if err := Verificar(q, contrato); err != nil {
+			b.Fatal(err)
+		}
+	}
+}

@@ -394,3 +394,16 @@ func TestTransmissaoNaoAloca(t *testing.T) {
 		t.Fatalf("alocações = %v", n)
 	}
 }
+
+func BenchmarkCampoDeOrigem(b *testing.B) {
+	o := comCampo(b, 1, "abc")
+	q := Novo()
+	if err := q.Ligar(o); err != nil {
+		b.Fatal(err)
+	}
+	b.ReportAllocs()
+	for b.Loop() {
+		v, _ := q.Campo(1)
+		sumidouro += len(v)
+	}
+}

@@ -45,12 +45,14 @@ func Verificar(q *quadro.Quadro, c *Contrato) error {
 	}
 	for t := range quadro.Tag(quadro.MaxTags) {
 		campo := &c[t]
-		v, ok := q.Campo(t)
-		switch {
-		case !ok && campo.Obrigatorio:
-			return &Recusa{Tag: t, Motivo: "obrigatório ausente"}
-		case !ok:
+		if !q.Presente(t) {
+			if campo.Obrigatorio {
+				return &Recusa{Tag: t, Motivo: "obrigatório ausente"}
+			}
 			continue
+		}
+		v, _ := q.Campo(t)
+		switch {
 		case campo.Max == 0:
 			return &Recusa{Tag: t, Motivo: "não declarado"}
 		case len(v) > campo.Max:
